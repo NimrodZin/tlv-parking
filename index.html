@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14181F">
 <title>חניוני אחוזות החוף — מצב עכשיו</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
   :root{
-    --ink:#14181F; --ink-2:#5B6270; --paper:#FFFFFF; --line:#E6E8EC;
+    --ink:#14181F; --ink-2:#5B6270; --paper:#FFFFFF; --line:#E6E8EC; --wash:#F3F5F8;
     --free:#1E9E5A; --few:#E39A00; --full:#D4343C; --closed:#8B909A; --nodata:#5D7FA8;
     --safe-b: env(safe-area-inset-bottom, 0px);
   }
@@ -18,14 +19,20 @@
   body{font-family:Heebo,system-ui,sans-serif;color:var(--ink);background:#DCE4E9;overflow:hidden}
   #map{position:fixed;inset:0;z-index:0}
   .leaflet-container{font:inherit}
+  .leaflet-tile-pane{filter:saturate(.55) contrast(.92) brightness(1.04)}
 
-  /* top bar */
   .top{position:fixed;top:0;right:0;left:0;z-index:20;padding:10px 12px 0;pointer-events:none}
   .bar{pointer-events:auto;background:var(--paper);border-radius:14px;box-shadow:0 2px 12px rgba(20,24,31,.14);padding:10px 14px 8px}
   .bar h1{margin:0;font-size:17px;font-weight:900;letter-spacing:-.01em;line-height:1.2}
   .bar .meta{font-size:12px;color:var(--ink-2);margin-top:2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .bar .meta .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--free)}
   .bar .meta .dot.stale{background:var(--few)}
+  .search{position:relative;margin-top:8px}
+  .search input{width:100%;font:inherit;font-size:15px;padding:9px 36px 9px 34px;border:1.5px solid var(--line);border-radius:11px;background:var(--wash);color:var(--ink)}
+  .search input:focus{outline:none;border-color:var(--ink);background:var(--paper)}
+  .search svg{position:absolute;right:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--ink-2);pointer-events:none}
+  .search .x{position:absolute;left:6px;top:50%;transform:translateY(-50%);border:0;background:none;font-size:20px;line-height:1;color:var(--ink-2);padding:4px 8px;cursor:pointer;display:none}
+  .search.has .x{display:block}
   .chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
   .chips::-webkit-scrollbar{display:none}
   .chip{flex:0 0 auto;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:5px 11px;font:inherit;font-size:13px;font-weight:500;cursor:pointer;display:flex;gap:6px;align-items:center}
@@ -33,20 +40,20 @@
   .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
   .chip[aria-pressed="true"] .n{color:#C9CDD4}
   .chip .sw{width:9px;height:9px;border-radius:50%}
-  .chip:focus-visible,.btn:focus-visible,.row:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .chip:focus-visible,.btn:focus-visible,.row:focus-visible,.locate:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
-  /* markers */
-  .pin{width:22px;height:22px;border-radius:50%;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);background:var(--nodata)}
+  .pin{width:22px;height:22px;border-radius:50%;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);background:var(--nodata);transition:transform .15s}
   .pin.free{background:var(--free)} .pin.few{background:var(--few)} .pin.full{background:var(--full)}
   .pin.closed{background:var(--closed)} .pin.nodata{background:#fff;border-color:var(--nodata);border-width:4px;width:20px;height:20px}
-  .pin.dim{opacity:.25}
-  .leaflet-marker-icon.sel .pin{transform:scale(1.35)}
+  .pin.dim{opacity:.2}
+  .leaflet-marker-icon.sel .pin{transform:scale(1.4)}
+  .locate{position:fixed;left:12px;bottom:calc(72px + var(--safe-b));z-index:25;width:42px;height:42px;border-radius:50%;border:0;background:var(--paper);box-shadow:0 2px 8px rgba(0,0,0,.2);display:grid;place-items:center;cursor:pointer}
+  .locate svg{width:20px;height:20px}
 
-  /* bottom sheet */
   .sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--paper);border-radius:18px 18px 0 0;box-shadow:0 -4px 20px rgba(20,24,31,.16);
-    max-height:min(62vh,520px);display:flex;flex-direction:column;transition:transform .25s ease;padding-bottom:var(--safe-b)}
+    max-height:min(66vh,560px);display:flex;flex-direction:column;transition:transform .25s ease;padding-bottom:var(--safe-b)}
   .sheet.min{transform:translateY(calc(100% - 58px - var(--safe-b)))}
-  .grip{flex:0 0 auto;padding:8px 16px 6px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .grip{flex:0 0 auto;padding:8px 16px 6px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative}
   .grip::before{content:"";position:absolute;top:6px;left:50%;width:36px;height:4px;border-radius:2px;background:#D5D9E0;transform:translateX(-50%)}
   .grip .t{font-weight:700;font-size:15px;margin-top:6px}
   .grip .s{font-size:12px;color:var(--ink-2);margin-top:6px}
@@ -58,36 +65,50 @@
   .row .st.closed{background:var(--closed)} .row .st.nodata{background:#EEF2F7;color:var(--nodata);border:2px solid var(--nodata)}
   .row .nm{font-weight:700;font-size:15px}
   .row .ad{font-size:12.5px;color:var(--ink-2);margin-top:1px}
-  .row .ds{font-size:13px;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .row .ds{font-size:13px;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums;text-align:left}
+  .row .ds b{display:block;color:var(--ink);font-weight:700}
+  .empty{padding:24px;text-align:center;color:var(--ink-2)}
 
-  /* detail */
-  .detail{padding:4px 16px 14px;overflow-y:auto}
+  .detail{padding:4px 16px 16px;overflow-y:auto}
   .detail .head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-  .detail h2{margin:0;font-size:20px;font-weight:900;line-height:1.15}
+  .detail h2{margin:0;font-size:21px;font-weight:900;line-height:1.15}
   .detail .addr{color:var(--ink-2);font-size:14px;margin-top:2px}
   .badge{flex:0 0 auto;border-radius:10px;padding:6px 12px;color:#fff;font-weight:900;font-size:14px}
   .badge.free{background:var(--free)} .badge.few{background:var(--few)} .badge.full{background:var(--full)}
   .badge.closed{background:var(--closed)} .badge.nodata{background:#EEF2F7;color:var(--nodata)}
-  .acts{display:flex;gap:8px;margin:12px 0 4px}
-  .btn{flex:1;text-align:center;text-decoration:none;color:var(--ink);border:1.5px solid var(--ink);border-radius:12px;padding:10px;font-weight:700;font-size:14px;background:var(--paper)}
+  .prices{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;margin-top:14px}
+  .price{background:var(--wash);border-radius:14px;padding:10px 12px 9px;min-width:0}
+  .price .v{font-size:26px;font-weight:900;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .price .v small{font-size:14px;font-weight:700;margin-right:2px}
+  .price .l{font-size:12px;color:var(--ink-2);margin-top:4px;line-height:1.3}
+  .price.gratis .v{color:var(--free)}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .tag{font-size:12.5px;padding:4px 10px;border-radius:999px;border:1.5px solid var(--line);color:var(--ink)}
+  .tag.good{border-color:var(--free);color:var(--free)}
+  .tag.warn{border-color:var(--few);color:#9A6A00}
+  .acts{display:flex;gap:8px;margin:14px 0 4px}
+  .btn{flex:1;text-align:center;text-decoration:none;color:var(--ink);border:1.5px solid var(--ink);border-radius:12px;padding:10px;font-weight:700;font-size:14px;background:var(--paper);font-family:inherit;cursor:pointer}
   .btn.primary{background:var(--ink);color:#fff}
   .btn.ghost{flex:0 0 auto;border-color:var(--line);color:var(--ink-2);font-weight:500}
-  .tar{margin-top:12px;font-size:14px;line-height:1.55}
-  .tar h3{margin:10px 0 3px;font-size:13px;color:var(--ink-2);font-weight:500}
-  .tar p{margin:0}
-  .tar .note{color:var(--ink-2);font-size:13px}
+  details{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+  summary{cursor:pointer;font-size:14px;color:var(--ink-2);list-style:none;display:flex;justify-content:space-between}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+"} details[open] summary::after{content:"–"}
+  .raw{font-size:13.5px;line-height:1.55;margin-top:6px}
+  .raw h3{margin:8px 0 2px;font-size:12.5px;color:var(--ink-2);font-weight:500}
+  .raw p{margin:0}
+  .foot{font-size:12px;color:var(--ink-2);margin-top:12px}
 
-  /* states */
   .msg{position:fixed;inset:0;display:grid;place-items:center;z-index:40;padding:24px;background:rgba(220,228,233,.9);text-align:center}
   .msg .card{background:var(--paper);border-radius:16px;padding:20px 22px;max-width:360px;box-shadow:0 4px 18px rgba(0,0,0,.15)}
   .msg h2{margin:0 0 6px;font-size:18px}
   .msg p{margin:0;color:var(--ink-2);font-size:14px;line-height:1.5}
   .msg a{color:var(--ink)}
   .hidden{display:none}
-  @media (prefers-reduced-motion:reduce){.sheet{transition:none}}
+  @media (prefers-reduced-motion:reduce){.sheet,.pin{transition:none}}
   @media (min-width:900px){
     .top{left:auto;width:420px}
-    .sheet{left:auto;right:12px;bottom:12px;width:420px;border-radius:18px;max-height:min(55vh,560px)}
+    .sheet{left:auto;right:12px;bottom:12px;width:420px;border-radius:18px;max-height:min(60vh,600px)}
     .sheet.min{transform:translateY(calc(100% - 58px))}
   }
 </style>
@@ -99,9 +120,18 @@
   <div class="bar">
     <h1>חניוני אחוזות החוף</h1>
     <div class="meta"><span class="dot" id="live"></span><span id="updated">טוען נתונים…</span><span id="counts"></span></div>
+    <div class="search" id="searchWrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="חיפוש חניון או רחוב" autocomplete="off" enterkeyhint="search" aria-label="חיפוש חניון">
+      <button class="x" id="qx" type="button" aria-label="נקה חיפוש">×</button>
+    </div>
     <div class="chips" id="chips" role="group" aria-label="סינון"></div>
   </div>
 </div>
+
+<button class="locate" id="locate" type="button" aria-label="המיקום שלי">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#14181F" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" fill="#14181F"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+</button>
 
 <div class="sheet min" id="sheet">
   <div class="grip" id="grip" role="button" tabindex="0" aria-label="הצג רשימה">
@@ -118,13 +148,14 @@
 <script>
 const SRC = 'https://gisn.tel-aviv.gov.il/ArcGIS/rest/services/IView2/MapServer/970/query?where=1%3D1&outFields=*&outSR=4326&f=geojson';
 const REFRESH_MS = 120000;
+const STALE_MS = 4*3600*1000;
 
 const STATUS = {
   'פנוי':{k:'free',  l:'פנוי',      short:'פנוי'},
   'מעט': {k:'few',   l:'מעט מקומות',short:'מעט'},
   'מלא': {k:'full',  l:'מלא',       short:'מלא'},
   'סגור':{k:'closed',l:'סגור',      short:'סגור'},
-  'פעיל':{k:'nodata',l:'פתוח, ללא מד תפוסה',short:'פתוח'},
+  'פעיל':{k:'nodata',l:'פתוח · ללא מד תפוסה',short:'פתוח'},
   '':    {k:'nodata',l:'אין מידע',  short:'—'}
 };
 const FILTERS = [
@@ -136,33 +167,54 @@ const FILTERS = [
   {id:'nodata', l:'ללא מד', k:'nodata'}
 ];
 
-let lots = [], markers = new Map(), filter = 'all', selected = null, me = null, lastBatch = 0;
+let lots = [], markers = new Map(), filter = 'all', query = '', selected = null, me = null, lastBatch = 0, lastFetch = 0;
 
-const map = L.map('map', {zoomControl:false, attributionControl:true}).setView([32.08, 34.78], 13);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  maxZoom:19, attribution:'© OpenStreetMap, © CARTO · נתונים: עיריית תל אביב-יפו'
+const map = L.map('map', {zoomControl:false}).setView([32.08, 34.78], 13);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom:19, attribution:'© OpenStreetMap · נתונים: עיריית תל אביב-יפו'
 }).addTo(map);
 L.control.zoom({position:'bottomleft'}).addTo(map);
 
 // ---------- data ----------
+const lines = s => (s||'').split('‡').map(x=>x.trim()).filter(Boolean);
+const num = (re, s) => { const m = s.match(re); return m ? Number(m[1]) : null; };
+const fold = s => (s||'').replace(/[״"`'’]/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+
+function parseTariff(l){
+  const all = [l.tariffDay, l.tariffDayWin, l.tariffNight, l.tariffNightWin].flat().join(' ');
+  const notes = l.notes.join(' ');
+  return {
+    firstHour: num(/לשעה ראשונה[^0-9]{0,25}(\d+)/, all),
+    quarter:   num(/¼ שעה נוספת[^0-9]{0,25}(\d+)/, all),
+    perHour:   num(/(\d+)\s*₪\s*לשעה/, all),
+    oneTime:   num(/חד[ -]?פעמית?[^0-9]{0,25}(\d+)/, all),
+    maxDay:    num(/מקסימום ליום[^0-9]{0,10}(\d+)/, all),
+    residentPct: num(/(\d+)%\s*(?:מתעריף|הנחה)/, notes) ?? num(/הנחה של (\d+)%/, notes),
+    residentPrice: num(/תו אזורי[^0-9]{0,6}(\d+(?:\.\d+)?)\s*₪/, all),
+    free15: /15 דקות ללא תשלום/.test(all+notes),
+    creditOnly: /אשראי/.test(notes+all),
+    closedNote: /נסגר/.test(all+notes)
+  };
+}
 function norm(p){
   const s = (p.status_chenyon||'').trim();
   const st = STATUS[s] || STATUS[''];
-  const tariff = p.taarif_yom||'';
-  return {
+  const l = {
     id: p.oid_hof, code: p.code_achoza,
-    name: (p.shem_chenyon||'').trim(), addr: (p.ktovet||'').trim(),
+    name: (p.shem_chenyon||'').trim().replace(/\s+/g,' '), addr: (p.ktovet||'').trim(),
     lat: p.lat, lon: p.lon,
     k: st.k, statusL: st.l, statusS: st.short,
-    gratis: /ללא תשלום/.test(tariff),
-    tariffDay: lines(tariff), tariffDayWin: lines(p.chalon_taarif_yom),
+    gratis: /ללא תשלום/.test(p.taarif_yom||''),
+    tariffDay: lines(p.taarif_yom), tariffDayWin: lines(p.chalon_taarif_yom),
     tariffNight: lines(p.taarif_layla), tariffNightWin: lines(p.chalon_zman_taarif_layla),
     notes: lines(p.hearot_taarif),
     spaces: p.mispar_mekomot_bchenyon||0,
     ts: p.tr_status_chenyon||0
   };
+  l.t = parseTariff(l);
+  l.hay = fold(l.name+' '+l.addr);
+  return l;
 }
-function lines(s){ return (s||'').split('‡').map(x=>x.trim()).filter(Boolean); }
 
 async function load(){
   try{
@@ -170,11 +222,11 @@ async function load(){
     if(!r.ok) throw new Error('HTTP '+r.status);
     const gj = await r.json();
     lots = gj.features.map(f=>norm(f.properties)).filter(l=>l.lat&&l.lon);
-    lastBatch = Math.max(...lots.map(l=>l.ts));
+    lastBatch = Math.max(...lots.map(l=>l.ts)); lastFetch = Date.now();
     hideMsg(); render();
   }catch(e){
     if(!lots.length) showMsg('לא הצלחתי לטעון את הנתונים',
-      'שרת ה-GIS של העירייה לא ענה או חסם את הבקשה מהדפדפן. אפשר לנסות לרענן, או לפתוח את <a href="'+SRC+'" target="_blank" rel="noopener">מקור הנתונים</a> ישירות.');
+      'שרת ה-GIS של העירייה לא ענה או חסם את הבקשה מהדפדפן. אפשר לרענן, או לפתוח את <a href="'+SRC+'" target="_blank" rel="noopener">מקור הנתונים</a> ישירות.');
     else document.getElementById('updated').textContent = 'הרענון נכשל · מציג נתונים קודמים';
   }
 }
@@ -184,12 +236,14 @@ function render(){
   renderMeta(); renderChips(); renderMarkers(); renderList();
   if(selected){ const l = lots.find(x=>x.id===selected); if(l) renderDetail(l); }
 }
+const hhmm = t => new Date(t).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
 function renderMeta(){
   const u = document.getElementById('updated'), dot = document.getElementById('live');
   if(lastBatch){
-    const d = new Date(lastBatch), age = (Date.now()-lastBatch)/60000;
-    u.textContent = 'עודכן ' + d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) + (age>90?' · לפני '+Math.round(age/60)+' שעות':'');
-    dot.classList.toggle('stale', age>90);
+    const age = Date.now()-lastBatch;
+    u.textContent = `נתוני העירייה מ‑${hhmm(lastBatch)} · נבדק ${hhmm(lastFetch)}`;
+    dot.classList.toggle('stale', age>STALE_MS);
+    dot.title = age>STALE_MS ? 'העירייה לא עדכנה כבר כמה שעות' : 'הנתונים טריים';
   }
   const c = {free:0,few:0,full:0};
   lots.forEach(l=>{ if(c[l.k]!==undefined) c[l.k]++; });
@@ -207,13 +261,12 @@ function renderChips(){
   });
 }
 function passes(l){
+  if(query && !l.hay.includes(query)) return false;
   if(filter==='all') return true;
   if(filter==='gratis') return l.gratis;
   const f = FILTERS.find(x=>x.id===filter); return l.k===f.k;
 }
-function icon(l, dim){
-  return L.divIcon({className:'', html:`<div class="pin ${l.k}${dim?' dim':''}"></div>`, iconSize:[22,22], iconAnchor:[11,11]});
-}
+const icon = (l, dim) => L.divIcon({className:'', html:`<div class="pin ${l.k}${dim?' dim':''}"></div>`, iconSize:[22,22], iconAnchor:[11,11]});
 function renderMarkers(){
   const seen = new Set();
   lots.forEach(l=>{
@@ -224,78 +277,126 @@ function renderMarkers(){
       m = L.marker([l.lat,l.lon], {icon:icon(l,dim), keyboard:true, title:l.name});
       m.on('click', ()=>select(l.id, true));
       m.addTo(map); markers.set(l.id, m);
-    } else { m.setIcon(icon(l,dim)); }
-    m.setZIndexOffset(dim?0:100);
+    } else m.setIcon(icon(l,dim));
+    m.setZIndexOffset(selected===l.id?200: dim?0:100);
     const el = m.getElement(); if(el) el.classList.toggle('sel', selected===l.id);
   });
   markers.forEach((m,id)=>{ if(!seen.has(id)){ map.removeLayer(m); markers.delete(id);} });
 }
 function dist(l){ if(!me) return null; const R=6371, dLat=(l.lat-me.lat)*Math.PI/180, dLon=(l.lon-me.lon)*Math.PI/180;
   const a=Math.sin(dLat/2)**2+Math.cos(me.lat*Math.PI/180)*Math.cos(l.lat*Math.PI/180)*Math.sin(dLon/2)**2; return 2*R*Math.asin(Math.sqrt(a)); }
-function fmtDist(km){ return km==null?'':km<1?Math.round(km*1000)+' מ׳':km.toFixed(1)+' ק״מ'; }
+const fmtDist = km => km==null?'':km<1?Math.round(km*1000)+' מ׳':km.toFixed(1)+' ק״מ';
+const walk = km => km==null?'':Math.max(1,Math.round(km/4.5*60))+' דק׳ הליכה';
 function renderList(){
   const el = document.getElementById('list'); el.innerHTML='';
   let arr = lots.filter(passes);
   const rank = {free:0,few:1,nodata:2,full:3,closed:4};
   arr.sort((a,b)=> me ? dist(a)-dist(b) : (rank[a.k]-rank[b.k]) || a.name.localeCompare(b.name,'he'));
-  document.getElementById('sheetTitle').textContent = me ? 'הקרובים אליך' : 'כל החניונים';
-  document.getElementById('sheetSub').textContent = me ? `${arr.length} חניונים לפי מרחק` : `${arr.length} חניונים · לפי מצב`;
+  document.getElementById('sheetTitle').textContent = query ? 'תוצאות חיפוש' : me ? 'הקרובים אליך' : 'כל החניונים';
+  document.getElementById('sheetSub').textContent = `${arr.length} חניונים` + (me ? ' · לפי מרחק' : ' · לפי מצב');
   arr.forEach(l=>{
     const b = document.createElement('button'); b.className='row'; b.type='button';
-    b.innerHTML = `<div class="st ${l.k}">${l.statusS}</div><div><div class="nm">${l.name}</div><div class="ad">${l.addr}${l.gratis?' · ללא תשלום':''}</div></div><div class="ds">${fmtDist(dist(l))}</div>`;
+    const d = dist(l);
+    b.innerHTML = `<div class="st ${l.k}">${l.statusS}</div>
+      <div><div class="nm">${l.name}</div><div class="ad">${l.addr}${l.gratis?' · ללא תשלום':''}</div></div>
+      <div class="ds">${d!=null?`<b>${fmtDist(d)}</b>${walk(d)}`:''}</div>`;
     b.onclick = ()=>select(l.id, false);
     el.appendChild(b);
   });
-  if(!arr.length) el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-2)">אין חניונים שמתאימים לסינון הזה</div>';
+  if(!arr.length) el.innerHTML = `<div class="empty">${query?'לא נמצא חניון בשם הזה':'אין חניונים שמתאימים לסינון הזה'}</div>`;
+  if(query && arr.length){ // zoom to results
+    const b = L.latLngBounds(arr.map(l=>[l.lat,l.lon])); map.fitBounds(b.pad(.3), {maxZoom:15});
+    document.getElementById('sheet').classList.remove('min');
+  }
 }
 function select(id, fromMap){
   selected = id; const l = lots.find(x=>x.id===id);
   renderMarkers(); renderDetail(l);
   document.getElementById('sheet').classList.remove('min');
   if(!fromMap) map.flyTo([l.lat,l.lon], Math.max(map.getZoom(),15), {duration:.4});
+  else map.panTo([l.lat,l.lon], {animate:true});
+}
+function priceTiles(l){
+  const t = l.t, tiles = [];
+  if(l.gratis) tiles.push(`<div class="price gratis"><div class="v">חינם</div><div class="l">לפי השילוט במקום</div></div>`);
+  else if(t.closedNote && !t.firstHour && !t.oneTime) tiles.push(`<div class="price"><div class="v">—</div><div class="l">החניון סגור לחניה</div></div>`);
+  else {
+    if(t.firstHour) tiles.push(`<div class="price"><div class="v"><small>₪</small>${t.firstHour}</div><div class="l">שעה ראשונה${t.quarter?`, +${t.quarter} ₪ לרבע שעה`:''}</div></div>`);
+    else if(t.perHour) tiles.push(`<div class="price"><div class="v"><small>₪</small>${t.perHour}</div><div class="l">לשעה, לפי דקות${t.maxDay?` · מקס׳ ${t.maxDay} ₪ ליום`:''}</div></div>`);
+    if(t.oneTime) tiles.push(`<div class="price"><div class="v"><small>₪</small>${t.oneTime}</div><div class="l">${t.firstHour||t.perHour?'לילה / שבת, כניסה חד־פעמית':'כניסה חד־פעמית, 24 שעות'}</div></div>`);
+    if(t.residentPrice) tiles.push(`<div class="price gratis"><div class="v"><small>₪</small>${t.residentPrice}</div><div class="l">תושב / סטודנט</div></div>`);
+    else if(t.residentPct) tiles.push(`<div class="price gratis"><div class="v">${t.residentPct}%</div><div class="l">הנחת תושב תל אביב-יפו</div></div>`);
+    if(!tiles.length) tiles.push(`<div class="price"><div class="v">?</div><div class="l">ראו פירוט התעריף</div></div>`);
+  }
+  return `<div class="prices">${tiles.slice(0,3).join('')}</div>`;
 }
 function renderDetail(l){
   const d = document.getElementById('detail'); document.getElementById('list').classList.add('hidden'); d.classList.remove('hidden');
   const waze = `https://waze.com/ul?ll=${l.lat},${l.lon}&navigate=yes`;
   const gmaps = `https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lon}`;
-  const sec = (t,arr)=> arr.length?`<h3>${t}</h3>${arr.map(x=>`<p>${x}</p>`).join('')}`:'';
+  const t = l.t, tags = [];
+  if(t.free15) tags.push('<span class="tag good">15 דק׳ ראשונות חינם</span>');
+  if(t.creditOnly) tags.push('<span class="tag warn">אשראי / אפליקציה בלבד</span>');
+  if(l.spaces) tags.push(`<span class="tag">${l.spaces} מקומות</span>`);
+  const dm = dist(l);
+  const sec = (h,arr)=> arr.length?`<h3>${h}</h3>${arr.map(x=>`<p>${x}</p>`).join('')}`:'';
   d.innerHTML = `
-    <div class="head"><div><h2>${l.name}</h2><div class="addr">${l.addr}</div></div><div class="badge ${l.k}">${l.statusL}</div></div>
+    <div class="head"><div><h2>${l.name}</h2><div class="addr">${l.addr}${dm!=null?` · ${fmtDist(dm)}, ${walk(dm)}`:''}</div></div><div class="badge ${l.k}">${l.statusL}</div></div>
+    ${priceTiles(l)}
+    ${tags.length?`<div class="tags">${tags.join('')}</div>`:''}
     <div class="acts">
       <a class="btn primary" href="${waze}" target="_blank" rel="noopener">נווט ב‑Waze</a>
       <a class="btn" href="${gmaps}" target="_blank" rel="noopener">Google Maps</a>
-      <button class="btn ghost" type="button" id="back">חזרה</button>
+      <button class="btn ghost" type="button" id="share" aria-label="שיתוף">שתף</button>
     </div>
-    <div class="tar">
-      ${l.spaces?`<p class="note">${l.spaces} מקומות חניה</p>`:''}
+    <details><summary>פירוט התעריף המלא</summary><div class="raw">
       ${sec('תעריף יום', l.tariffDay.concat(l.tariffDayWin))}
       ${sec('תעריף לילה', l.tariffNight.concat(l.tariffNightWin))}
-      ${l.notes.length?`<h3>הערות</h3>${l.notes.map(x=>`<p class="note">${x}</p>`).join('')}`:''}
-      ${l.ts?`<p class="note" style="margin-top:10px">מצב תפוסה נכון ל‑${new Date(l.ts).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'})}</p>`:''}
-    </div>`;
+      ${sec('הערות', l.notes)}
+    </div></details>
+    <div class="foot">${l.ts?`מצב תפוסה לפי העירייה נכון ל‑${new Date(l.ts).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'})}. `:''}התעריף הקובע הוא זה שבשילוט בחניון.</div>
+    <div class="acts" style="margin-top:8px"><button class="btn ghost" type="button" id="back" style="flex:1">חזרה לרשימה</button></div>`;
   document.getElementById('back').onclick = ()=>{ selected=null; closeDetail(); renderMarkers(); };
+  document.getElementById('share').onclick = async ()=>{
+    const url = location.origin+location.pathname+'#'+l.id;
+    const text = `חניון ${l.name} — ${l.statusL}. ${l.addr}`;
+    if(navigator.share){ try{ await navigator.share({title:l.name, text, url}); }catch(e){} }
+    else { await navigator.clipboard.writeText(text+' '+url); document.getElementById('share').textContent='הועתק'; }
+  };
+  history.replaceState(null,'','#'+l.id);
 }
-function closeDetail(){ document.getElementById('detail').classList.add('hidden'); document.getElementById('list').classList.remove('hidden'); }
+function closeDetail(){ document.getElementById('detail').classList.add('hidden'); document.getElementById('list').classList.remove('hidden'); history.replaceState(null,'',location.pathname); }
 
-// ---------- sheet + location ----------
+// ---------- search ----------
+const q = document.getElementById('q'), qw = document.getElementById('searchWrap');
+q.addEventListener('input', ()=>{ query = fold(q.value); qw.classList.toggle('has', !!query); selected=null; closeDetail(); render(); if(!query) map.setView([32.08,34.78],13); });
+document.getElementById('qx').onclick = ()=>{ q.value=''; q.dispatchEvent(new Event('input')); q.focus(); };
+q.addEventListener('keydown', e=>{ if(e.key==='Enter'){ q.blur(); const first = lots.filter(passes)[0]; if(first) select(first.id,false); } });
+
+// ---------- sheet, location ----------
 const sheet = document.getElementById('sheet'), grip = document.getElementById('grip');
 grip.onclick = ()=> sheet.classList.toggle('min');
 grip.onkeydown = e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); grip.click(); } };
 map.on('click', ()=> sheet.classList.add('min'));
 
 let meMarker;
-if(navigator.geolocation){
+function locate(fly){
+  if(!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition(p=>{
     me = {lat:p.coords.latitude, lon:p.coords.longitude};
-    meMarker = L.circleMarker([me.lat,me.lon],{radius:7,color:'#fff',weight:3,fillColor:'#2F6BFF',fillOpacity:1}).addTo(map);
+    if(!meMarker) meMarker = L.circleMarker([me.lat,me.lon],{radius:7,color:'#fff',weight:3,fillColor:'#2F6BFF',fillOpacity:1}).addTo(map);
+    else meMarker.setLatLng([me.lat,me.lon]);
+    if(fly) map.flyTo([me.lat,me.lon], 15, {duration:.5});
     if(lots.length) renderList();
-  }, ()=>{ document.getElementById('sheetSub').textContent='מיקום לא זמין · מסודר לפי מצב'; }, {timeout:8000, maximumAge:60000});
+  }, ()=>{ document.getElementById('sheetSub').textContent='מיקום לא זמין · מסודר לפי מצב'; }, {timeout:8000, maximumAge:60000, enableHighAccuracy:true});
 }
+document.getElementById('locate').onclick = ()=>locate(true);
+locate(false);
 
 function showMsg(t,p){ document.getElementById('msgT').textContent=t; document.getElementById('msgP').innerHTML=p; document.getElementById('msg').classList.remove('hidden'); }
 function hideMsg(){ document.getElementById('msg').classList.add('hidden'); }
 
-load();
+load().then(()=>{ const id = Number(location.hash.slice(1)); if(id && lots.find(l=>l.id===id)) select(id,false); });
 setInterval(load, REFRESH_MS);
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) load(); });
 </script>
