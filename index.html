@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14181F">
 <title>חניוני אחוזות החוף — מצב עכשיו</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
   :root{
@@ -16,22 +16,28 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
-  body{font-family:Heebo,system-ui,sans-serif;color:var(--ink);background:#DCE4E9;overflow:hidden}
+  body{font-family:Heebo,'IBM Plex Sans Arabic',system-ui,sans-serif;color:var(--ink);background:#DCE4E9;overflow:hidden}
+  html[lang=ar] body{font-family:'IBM Plex Sans Arabic',Heebo,system-ui,sans-serif}
+  html[lang=ar] .bar h1,html[lang=ar] .detail h2,html[lang=ar] .price .v,html[lang=ar] .row .st,html[lang=ar] .badge{font-weight:700}
   #map{position:fixed;inset:0;z-index:0}
   .leaflet-container{font:inherit}
   .leaflet-tile-pane{filter:saturate(.55) contrast(.92) brightness(1.04)}
 
-  .top{position:fixed;top:0;right:0;left:0;z-index:20;padding:10px 12px 0;pointer-events:none}
+  .top{position:fixed;top:0;inset-inline:0;z-index:20;padding:10px 12px 0;pointer-events:none}
   .bar{pointer-events:auto;background:var(--paper);border-radius:14px;box-shadow:0 2px 12px rgba(20,24,31,.14);padding:10px 14px 8px}
+  .hrow{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
   .bar h1{margin:0;font-size:17px;font-weight:900;letter-spacing:-.01em;line-height:1.2}
+  .langs{display:flex;border:1.5px solid var(--line);border-radius:8px;overflow:hidden;flex:0 0 auto}
+  .langs button{border:0;background:var(--paper);font:inherit;font-size:12px;font-weight:700;padding:4px 8px;cursor:pointer;color:var(--ink-2)}
+  .langs button[aria-pressed="true"]{background:var(--ink);color:#fff}
   .bar .meta{font-size:12px;color:var(--ink-2);margin-top:2px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .bar .meta .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--free)}
   .bar .meta .dot.stale{background:var(--few)}
   .search{position:relative;margin-top:8px}
   .search input{width:100%;font:inherit;font-size:15px;padding:9px 36px 9px 34px;border:1.5px solid var(--line);border-radius:11px;background:var(--wash);color:var(--ink)}
   .search input:focus{outline:none;border-color:var(--ink);background:var(--paper)}
-  .search svg{position:absolute;right:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--ink-2);pointer-events:none}
-  .search .x{position:absolute;left:6px;top:50%;transform:translateY(-50%);border:0;background:none;font-size:20px;line-height:1;color:var(--ink-2);padding:4px 8px;cursor:pointer;display:none}
+  .search svg{position:absolute;inset-inline-end:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--ink-2);pointer-events:none}
+  .search .x{position:absolute;inset-inline-start:6px;top:50%;transform:translateY(-50%);border:0;background:none;font-size:20px;line-height:1;color:var(--ink-2);padding:4px 8px;cursor:pointer;display:none}
   .search.has .x{display:block}
   .chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
   .chips::-webkit-scrollbar{display:none}
@@ -40,17 +46,17 @@
   .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
   .chip[aria-pressed="true"] .n{color:#C9CDD4}
   .chip .sw{width:9px;height:9px;border-radius:50%}
-  .chip:focus-visible,.btn:focus-visible,.row:focus-visible,.locate:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .chip:focus-visible,.btn:focus-visible,.row:focus-visible,.locate:focus-visible,.langs button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
   .pin{width:22px;height:22px;border-radius:50%;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);background:var(--nodata);transition:transform .15s}
   .pin.free{background:var(--free)} .pin.few{background:var(--few)} .pin.full{background:var(--full)}
   .pin.closed{background:var(--closed)} .pin.nodata{background:#fff;border-color:var(--nodata);border-width:4px;width:20px;height:20px}
   .pin.dim{opacity:.2}
   .leaflet-marker-icon.sel .pin{transform:scale(1.4)}
-  .locate{position:fixed;left:12px;bottom:calc(72px + var(--safe-b));z-index:25;width:42px;height:42px;border-radius:50%;border:0;background:var(--paper);box-shadow:0 2px 8px rgba(0,0,0,.2);display:grid;place-items:center;cursor:pointer}
+  .locate{position:fixed;inset-inline-start:12px;bottom:calc(72px + var(--safe-b));z-index:25;width:42px;height:42px;border-radius:50%;border:0;background:var(--paper);box-shadow:0 2px 8px rgba(0,0,0,.2);display:grid;place-items:center;cursor:pointer}
   .locate svg{width:20px;height:20px}
 
-  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--paper);border-radius:18px 18px 0 0;box-shadow:0 -4px 20px rgba(20,24,31,.16);
+  .sheet{position:fixed;inset-inline:0;bottom:0;z-index:30;background:var(--paper);border-radius:18px 18px 0 0;box-shadow:0 -4px 20px rgba(20,24,31,.16);
     max-height:min(66vh,560px);display:flex;flex-direction:column;transition:transform .25s ease;padding-bottom:var(--safe-b)}
   .sheet.min{transform:translateY(calc(100% - 58px - var(--safe-b)))}
   .grip{flex:0 0 auto;padding:8px 16px 6px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative}
@@ -58,20 +64,21 @@
   .grip .t{font-weight:700;font-size:15px;margin-top:6px}
   .grip .s{font-size:12px;color:var(--ink-2);margin-top:6px}
   .list{overflow-y:auto;flex:1 1 auto;padding:0 8px 8px}
-  .row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:11px 8px;border-top:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-bottom:0;width:100%;text-align:right;font:inherit;color:inherit}
+  .row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:11px 8px;border-top:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-bottom:0;width:100%;text-align:start;font:inherit;color:inherit}
   .row:first-child{border-top:0}
-  .row .st{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:13px;line-height:1}
+  .row .st{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:12px;line-height:1;text-align:center;padding:0 2px}
   .row .st.free{background:var(--free)} .row .st.few{background:var(--few)} .row .st.full{background:var(--full)}
   .row .st.closed{background:var(--closed)} .row .st.nodata{background:#EEF2F7;color:var(--nodata);border:2px solid var(--nodata)}
   .row .nm{font-weight:700;font-size:15px}
   .row .ad{font-size:12.5px;color:var(--ink-2);margin-top:1px}
-  .row .ds{font-size:13px;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums;text-align:left}
+  .row .ds{font-size:13px;color:var(--ink-2);white-space:nowrap;font-variant-numeric:tabular-nums;text-align:end}
   .row .ds b{display:block;color:var(--ink);font-weight:700}
   .empty{padding:24px;text-align:center;color:var(--ink-2)}
 
   .detail{padding:4px 16px 16px;overflow-y:auto}
   .detail .head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
   .detail h2{margin:0;font-size:21px;font-weight:900;line-height:1.15}
+  .detail .sub{color:var(--ink-2);font-size:13px;margin-top:2px}
   .detail .addr{color:var(--ink-2);font-size:14px;margin-top:2px}
   .badge{flex:0 0 auto;border-radius:10px;padding:6px 12px;color:#fff;font-weight:900;font-size:14px}
   .badge.free{background:var(--free)} .badge.few{background:var(--few)} .badge.full{background:var(--full)}
@@ -79,7 +86,7 @@
   .prices{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;margin-top:14px}
   .price{background:var(--wash);border-radius:14px;padding:10px 12px 9px;min-width:0}
   .price .v{font-size:26px;font-weight:900;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-  .price .v small{font-size:14px;font-weight:700;margin-right:2px}
+  .price .v small{font-size:14px;font-weight:700;margin-inline-end:2px}
   .price .l{font-size:12px;color:var(--ink-2);margin-top:4px;line-height:1.3}
   .price.gratis .v{color:var(--free)}
   .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -94,7 +101,7 @@
   summary{cursor:pointer;font-size:14px;color:var(--ink-2);list-style:none;display:flex;justify-content:space-between}
   summary::-webkit-details-marker{display:none}
   summary::after{content:"+"} details[open] summary::after{content:"–"}
-  .raw{font-size:13.5px;line-height:1.55;margin-top:6px}
+  .raw{font-size:13.5px;line-height:1.55;margin-top:6px;direction:rtl;text-align:right}
   .raw h3{margin:8px 0 2px;font-size:12.5px;color:var(--ink-2);font-weight:500}
   .raw p{margin:0}
   .foot{font-size:12px;color:var(--ink-2);margin-top:12px}
@@ -107,36 +114,41 @@
   .hidden{display:none}
   @media (prefers-reduced-motion:reduce){.sheet,.pin{transition:none}}
   @media (min-width:900px){
-    .top{left:auto;width:420px}
-    .sheet{left:auto;right:12px;bottom:12px;width:420px;border-radius:18px;max-height:min(60vh,600px)}
+    .top{inset-inline-start:auto;width:420px}
+    .sheet{inset-inline-start:auto;inset-inline-end:12px;bottom:12px;width:420px;border-radius:18px;max-height:min(60vh,600px)}
     .sheet.min{transform:translateY(calc(100% - 58px))}
   }
 </style>
 </head>
 <body>
-<div id="map" role="application" aria-label="מפת חניונים"></div>
+<div id="map" role="application"></div>
 
 <div class="top">
   <div class="bar">
-    <h1>חניוני אחוזות החוף</h1>
-    <div class="meta"><span class="dot" id="live"></span><span id="updated">טוען נתונים…</span><span id="counts"></span></div>
+    <div class="hrow">
+      <h1 id="title"></h1>
+      <div class="langs" role="group" aria-label="Language">
+        <button type="button" data-lang="he">עב</button><button type="button" data-lang="en">EN</button><button type="button" data-lang="ar">ع</button>
+      </div>
+    </div>
+    <div class="meta"><span class="dot" id="live"></span><span id="updated"></span><span id="counts"></span></div>
     <div class="search" id="searchWrap">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-      <input id="q" type="search" placeholder="חיפוש חניון או רחוב" autocomplete="off" enterkeyhint="search" aria-label="חיפוש חניון">
-      <button class="x" id="qx" type="button" aria-label="נקה חיפוש">×</button>
+      <input id="q" type="search" autocomplete="off" enterkeyhint="search">
+      <button class="x" id="qx" type="button">×</button>
     </div>
-    <div class="chips" id="chips" role="group" aria-label="סינון"></div>
+    <div class="chips" id="chips" role="group"></div>
   </div>
 </div>
 
-<button class="locate" id="locate" type="button" aria-label="המיקום שלי">
+<button class="locate" id="locate" type="button">
   <svg viewBox="0 0 24 24" fill="none" stroke="#14181F" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" fill="#14181F"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
 </button>
 
 <div class="sheet min" id="sheet">
-  <div class="grip" id="grip" role="button" tabindex="0" aria-label="הצג רשימה">
-    <div class="t" id="sheetTitle">הקרובים אליך</div>
-    <div class="s" id="sheetSub">מאתר מיקום…</div>
+  <div class="grip" id="grip" role="button" tabindex="0">
+    <div class="t" id="sheetTitle"></div>
+    <div class="s" id="sheetSub"></div>
   </div>
   <div class="list" id="list"></div>
   <div class="detail hidden" id="detail"></div>
@@ -147,74 +159,146 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 const SRC = 'https://gisn.tel-aviv.gov.il/ArcGIS/rest/services/IView2/MapServer/970/query?where=1%3D1&outFields=*&outSR=4326&f=geojson';
-const REFRESH_MS = 120000;
-const STALE_MS = 4*3600*1000;
+const REFRESH_MS = 120000, STALE_MS = 4*3600*1000;
 
-const STATUS = {
-  'פנוי':{k:'free',  l:'פנוי',      short:'פנוי'},
-  'מעט': {k:'few',   l:'מעט מקומות',short:'מעט'},
-  'מלא': {k:'full',  l:'מלא',       short:'מלא'},
-  'סגור':{k:'closed',l:'סגור',      short:'סגור'},
-  'פעיל':{k:'nodata',l:'פתוח · ללא מד תפוסה',short:'פתוח'},
-  '':    {k:'nodata',l:'אין מידע',  short:'—'}
+// ---------- i18n ----------
+const I18N = {
+  he:{dir:'rtl', locale:'he-IL', title:'חניוני אחוזות החוף', docTitle:'חניוני אחוזות החוף — מצב עכשיו', loading:'טוען נתונים…',
+    updated:(a,b)=>`נתוני העירייה מ‑${a} · נבדק ${b}`, counts:(f,w,u)=>`${f} פנויים · ${w} מעט · ${u} מלאים`,
+    search:'חיפוש חניון או רחוב', clear:'נקה חיפוש', locate:'המיקום שלי', map:'מפת חניונים', showList:'הצג רשימה',
+    filters:{all:'הכל',free:'פנוי',few:'מעט',full:'מלא',gratis:'ללא תשלום',nodata:'ללא מד'},
+    status:{free:['פנוי','פנוי'],few:['מעט מקומות','מעט'],full:['מלא','מלא'],closed:['סגור','סגור'],open:['פתוח · ללא מד תפוסה','פתוח'],unknown:['אין מידע','—']},
+    near:'הקרובים אליך', all:'כל החניונים', results:'תוצאות חיפוש', lots:n=>`${n} חניונים`, byDist:'לפי מרחק', byStatus:'לפי מצב', locating:'מאתר מיקום…', noLoc:'מיקום לא זמין · מסודר לפי מצב',
+    notFound:'לא נמצא חניון בשם הזה', noneMatch:'אין חניונים שמתאימים לסינון הזה', gratisTag:'ללא תשלום',
+    m:'מ׳', km:'ק״מ', walk:n=>`${n} דק׳ הליכה`,
+    pFree:'חינם', pFreeL:'לפי השילוט במקום', pClosed:'החניון סגור לחניה', firstHour:'שעה ראשונה', quarter:q=>`, +${q} ₪ לרבע שעה`, perHour:'לשעה, לפי דקות', maxDay:m=>` · מקס׳ ${m} ₪ ליום`,
+    oneNight:'לילה / שבת, כניסה חד־פעמית', oneDay:'כניסה חד־פעמית, 24 שעות', resident:'תושב / סטודנט', residentPct:'הנחת תושב תל אביב-יפו', seeRaw:'ראו פירוט התעריף',
+    free15:'15 דק׳ ראשונות חינם', credit:'אשראי / אפליקציה בלבד', spaces:n=>`${n} מקומות`,
+    waze:'נווט ב‑Waze', gmaps:'Google Maps', share:'שתף', copied:'הועתק', back:'חזרה לרשימה', raw:'פירוט התעריף המלא (עברית)', day:'תעריף יום', night:'תעריף לילה', notes:'הערות',
+    asOf:d=>`מצב תפוסה לפי העירייה נכון ל‑${d}. `, disclaimer:'התעריף הקובע הוא זה שבשילוט בחניון.', lotWord:'חניון',
+    errT:'לא הצלחתי לטעון את הנתונים', errP:src=>`שרת ה-GIS של העירייה לא ענה או חסם את הבקשה. אפשר לרענן, או לפתוח את <a href="${src}" target="_blank" rel="noopener">מקור הנתונים</a> ישירות.`, errRefresh:'הרענון נכשל · מציג נתונים קודמים',
+    attrib:'© OpenStreetMap · נתונים: עיריית תל אביב-יפו', staleHint:'העירייה לא עדכנה כבר כמה שעות', freshHint:'הנתונים טריים'},
+  en:{dir:'ltr', locale:'en-GB', title:'Tel Aviv city parking', docTitle:'Tel Aviv city parking — live status', loading:'Loading…',
+    updated:(a,b)=>`City data from ${a} · checked ${b}`, counts:(f,w,u)=>`${f} available · ${w} few · ${u} full`,
+    search:'Search a lot or street', clear:'Clear search', locate:'My location', map:'Parking map', showList:'Show list',
+    filters:{all:'All',free:'Available',few:'Few',full:'Full',gratis:'Free of charge',nodata:'No meter'},
+    status:{free:['Available','Open'],few:['Few spaces','Few'],full:['Full','Full'],closed:['Closed','Closed'],open:['Open · no occupancy meter','Open'],unknown:['No data','—']},
+    near:'Nearest to you', all:'All lots', results:'Search results', lots:n=>`${n} lots`, byDist:'by distance', byStatus:'by status', locating:'Locating…', noLoc:'Location unavailable · sorted by status',
+    notFound:'No lot matches that name', noneMatch:'No lots match this filter', gratisTag:'free of charge',
+    m:'m', km:'km', walk:n=>`${n} min walk`,
+    pFree:'Free', pFreeL:'per signage on site', pClosed:'Lot closed to parking', firstHour:'first hour', quarter:q=>`, +₪${q} per 15 min`, perHour:'per hour, billed by the minute', maxDay:m=>` · max ₪${m}/day`,
+    oneNight:'night / Saturday, flat entry', oneDay:'flat entry, 24 hours', resident:'resident / student', residentPct:'Tel Aviv resident discount', seeRaw:'see full tariff',
+    free15:'first 15 min free', credit:'card / app only', spaces:n=>`${n} spaces`,
+    waze:'Navigate in Waze', gmaps:'Google Maps', share:'Share', copied:'Copied', back:'Back to list', raw:'Full tariff text (Hebrew)', day:'Day tariff', night:'Night tariff', notes:'Notes',
+    asOf:d=>`Occupancy per city data as of ${d}. `, disclaimer:'The binding tariff is the one posted at the lot.', lotWord:'parking',
+    errT:'Couldn’t load the data', errP:src=>`The city GIS server didn’t answer or blocked the request. Try reloading, or open the <a href="${src}" target="_blank" rel="noopener">data source</a> directly.`, errRefresh:'Refresh failed · showing earlier data',
+    attrib:'© OpenStreetMap · Data: Tel Aviv-Yafo Municipality', staleHint:'The city hasn’t updated for a few hours', freshHint:'Data is fresh'},
+  ar:{dir:'rtl', locale:'ar-u-nu-latn', title:'مواقف بلدية تل أبيب', docTitle:'مواقف بلدية تل أبيب — الحالة الآن', loading:'جارٍ التحميل…',
+    updated:(a,b)=>`بيانات البلدية من ${a} · تم الفحص ${b}`, counts:(f,w,u)=>`${f} متاح · ${w} قليل · ${u} ممتلئ`,
+    search:'ابحث عن موقف أو شارع', clear:'مسح البحث', locate:'موقعي', map:'خريطة المواقف', showList:'عرض القائمة',
+    filters:{all:'الكل',free:'متاح',few:'قليل',full:'ممتلئ',gratis:'مجاني',nodata:'بدون عدّاد'},
+    status:{free:['متاح','متاح'],few:['أماكن قليلة','قليل'],full:['ممتلئ','ممتلئ'],closed:['مغلق','مغلق'],open:['مفتوح · بدون عدّاد إشغال','مفتوح'],unknown:['لا بيانات','—']},
+    near:'الأقرب إليك', all:'كل المواقف', results:'نتائج البحث', lots:n=>`${n} مواقف`, byDist:'حسب المسافة', byStatus:'حسب الحالة', locating:'جارٍ تحديد الموقع…', noLoc:'الموقع غير متاح · مرتّب حسب الحالة',
+    notFound:'لا يوجد موقف بهذا الاسم', noneMatch:'لا توجد مواقف تطابق هذا التصفية', gratisTag:'مجاني',
+    m:'م', km:'كم', walk:n=>`${n} د مشيًا`,
+    pFree:'مجاني', pFreeL:'حسب اللافتات في المكان', pClosed:'الموقف مغلق', firstHour:'الساعة الأولى', quarter:q=>`، +${q} ₪ لكل ربع ساعة`, perHour:'للساعة، حسب الدقائق', maxDay:m=>` · الحد الأقصى ${m} ₪ يوميًا`,
+    oneNight:'ليلًا / السبت، دخول لمرة واحدة', oneDay:'دخول لمرة واحدة، 24 ساعة', resident:'مقيم / طالب', residentPct:'خصم لسكان تل أبيب-يافا', seeRaw:'انظر تفاصيل التعرفة',
+    free15:'أول 15 دقيقة مجانًا', credit:'بطاقة / تطبيق فقط', spaces:n=>`${n} مكانًا`,
+    waze:'التوجيه عبر Waze', gmaps:'خرائط Google', share:'مشاركة', copied:'تم النسخ', back:'العودة إلى القائمة', raw:'نص التعرفة الكامل (بالعبرية)', day:'تعرفة النهار', night:'تعرفة الليل', notes:'ملاحظات',
+    asOf:d=>`حالة الإشغال حسب بيانات البلدية بتاريخ ${d}. `, disclaimer:'التعرفة المُلزِمة هي المعلَنة في الموقف.', lotWord:'موقف',
+    errT:'تعذّر تحميل البيانات', errP:src=>`خادم GIS التابع للبلدية لم يستجب أو حجب الطلب. حاول التحديث، أو افتح <a href="${src}" target="_blank" rel="noopener">مصدر البيانات</a> مباشرة.`, errRefresh:'فشل التحديث · تُعرض بيانات سابقة',
+    attrib:'© OpenStreetMap · البيانات: بلدية تل أبيب-يافا', staleHint:'لم تحدّث البلدية البيانات منذ ساعات', freshHint:'البيانات حديثة'}
 };
-const FILTERS = [
-  {id:'all', l:'הכל'},
-  {id:'free', l:'פנוי', k:'free'},
-  {id:'few', l:'מעט', k:'few'},
-  {id:'full', l:'מלא', k:'full'},
-  {id:'gratis', l:'ללא תשלום'},
-  {id:'nodata', l:'ללא מד', k:'nodata'}
-];
+// Lot names: Hebrew (as in feed, folded) → [English, Arabic]
+const NAMES = {
+  'בזל':['Basel','بازل'], 'תל - נורדאו':['Tel Nordau','تل نورداو'], 'הארד':['HaArad','هاأراد'], 'גולדה':['Golda','غولدا'], 'ברוריה':['Bruria','بروريا'], 'בני דן':['Bnei Dan','بني دان'],
+  'חברה חדשה':['Hevra Hadasha','حفرا حداشا'], 'בוגרשוב':['Bograshov','بوغراشوف'], 'מירשם':['Mirsham (TAU)','ميرشام (جامعة تل أبيب)'], 'מדעי החברה':['Social Sciences (TAU)','العلوم الاجتماعية (الجامعة)'],
+  'ארלוזורוב - חנה וסע':['Arlozorov Park & Ride','أرلوزوروف — اركن واركب'], 'התחנה':['HaTahana','هتاحنا (المحطة)'], 'מפעל הפיס':['Mifal HaPais','مفعال هبايس'], 'דובנוב':['Dubnov','دوبنوف'], 'סינרמה':['Cinerama','سينيراما'],
+  'בית האצל':['Beit HaEtzel','بيت هإتسل'], 'נחושת':['HaNehoshet','هنحوشت'], 'הצפירה 1':['HaTzfira 1','هتسفيرا 1'], 'הצפירה 2':['HaTzfira 2','هتسفيرا 2'], 'רפואת שיניים':['Dental School (TAU)','كلية طب الأسنان (الجامعة)'],
+  'התרבות':['HaTarbut (Culture Sq.)','هتربوت (ساحة الثقافة)'], 'פלמח':['Palmach','بلماح'], 'גלי גיל':['Galei Gil','غالي غيل'], 'לולאה':['Lula’a','لولاءا'], 'מרכזים':['Merkazim','مركازيم'],
+  'כרמל 1':['Carmel 1','الكرمل 1'], 'כרמל 2':['Carmel 2','الكرمل 2'], 'מרד':['HaMered','همرد'], 'פנחס רוזן':['Pinhas Rosen','بنحاس روزن'], 'התקומה':['HaTkuma','هتكوما'], 'החשמל':['HaHashmal','هحشمل'],
+  'גן הכובשים 1 - מזרח':['Gan HaKovshim 1 East','غان هكوفشيم 1 شرق'], 'גן הכובשים 2 - מערב':['Gan HaKovshim 2 West','غان هكوفشيم 2 غرب'], 'מונטיפיורי':['Montefiore','مونتفيوري'], 'רבניצקי':['Rawnitzki','رافنيتسكي'],
+  'גני יהושע':['Ganei Yehoshua (Park)','غاني يهوشوع (الحديقة)'], 'גולפיטק':['Golfitek','غولفيتك'], 'סמולרש':['Smolarz (TAU)','سمولارش (الجامعة)'], 'נמל תא':['Tel Aviv Port','ميناء تل أبيب'], 'השפך (בנמל תא)':['HaShefech (Port)','هشيفخ (الميناء)'],
+  'שרתון':['Sheraton','شيراتون'], 'אבולעפיה':['Abulafia','أبو العافية'], 'אחימאיר':['Ahimeir','أحيمئير'], 'בית הדר א':['Beit Hadar A','بيت هدار أ'], 'בית החייל':['Beit HaHayal','بيت هحيال'], 'בית צורי':['Beit Tzuri','بيت تسوري'],
+  'בן יוסף':['Ben Yosef','بن يوسف'], 'בן יוסף 2':['Ben Yosef 2','بن يوسف 2'], 'ברזני':['Barazani','برزاني'], 'הנדסה':['Engineering (TAU)','الهندسة (الجامعة)'], 'גלי צהל':['Galei Tzahal','غالي تساهل'], 'הבעשט':['HaBesht','هبعشط'],
+  'המערכה':['HaMaaracha','همعراخا'], 'הרב קוק':['HaRav Kook','هراف كوك'], 'וולפסון 2':['Wolfson 2','وولفسون 2'], 'טאגור':['Tagore','طاغور'], 'טירת צבי':['Tirat Tzvi','طيرات تسفي'], 'יד אבנר':['Yad Avner','ياد أفنير'],
+  'מבצע קדש':['Mivtza Kadesh','مفتساع كاديش'], 'מטודלה':['Metudela','متوديلا'], 'מי ומי':['Mi VaMi','مي ومي'], 'מכללה למינהל ומכללת לוינסקי 1':['College of Management 1','كلية الإدارة 1'],
+  'מכללה למינהל ומכללת לוינסקי 2':['College of Management 2','كلية الإدارة 2'], 'מכללה למינהל ומכללת לוינסקי 3':['College of Management 3','كلية الإدارة 3'], 'מכללת יפו':['Jaffa College','كلية يافا'],
+  'סלודור':['Salvador','سلفادور'], 'ספיר':['Sapir','سبير'], 'עין יעקב':['Ein Yaakov','عين يعقوب'], 'עיר שמש':['Ir Shemesh','عير شيمش'], 'פליטי הספר':['Plitei HaSefer','بليطي هسيفر'], 'צבי נישרי':['Tzvi Nishri','تسفي نيشري'],
+  'רפידים':['Refidim','رفيديم'], 'שלונסקי':['Shlonsky','شلونسكي'], 'כלכלה':['Economics (TAU)','الاقتصاد (الجامعة)'], 'הלוחמים':['HaLohamim','هلوحميم'], 'סוציאלית (מעונות)':['Social Work / Dorms (TAU)','الخدمة الاجتماعية / السكن (الجامعة)'],
+  'אלוף':['Aluf','ألوف'], 'חוף תל-ברוך':['Tel Baruch Beach','شاطئ تل باروخ'], 'ליבר':['Liber','ليبر'], 'המוזיאונים':['Museums (Ramat Aviv)','المتاحف (رمات أفيف)'], 'אסותא':['Assuta','أسوتا'],
+  'ארלוזורוב 17':['Arlozorov 17','أرلوزوروف 17'], 'רמז-ארלוזורוב':['Remez–Arlozorov','ريمز-أرلوزوروف'], 'סעדיה גאון':['Saadia Gaon','سعديا غاؤون'], 'רידינג מערב':['Reading West','ريدينغ غرب'], 'רידינג מזרח':['Reading East','ريدينغ شرق'],
+  'צמרות':['Tzamarot','تسماروت'], 'כיתן':['Kitan','كيتان'], 'גולדמן':['Goldman','غولدمان'], 'המשתלה':['HaMishtala','همشتلا'], 'קצה השדרה (רוטשילד1)':['Rothschild 1','روتشيلد 1'],
+  'כיכר עליה':['Kikar Aliya','ساحة عالياه'], 'גלית':['Galit','غاليت'], 'סוללים':['Solelim','سوليليم']
+};
+let lang = 'he', curAttrib = '';
+const T = () => I18N[lang];
+function pickLang(){
+  const u = new URLSearchParams(location.search).get('lang');
+  const s = localStorage.getItem('lang');
+  const n = (navigator.language||'').slice(0,2);
+  const c = u || s || (['en','ar','he'].includes(n)?n:'he');
+  return I18N[c] ? c : 'he';
+}
+function setLang(l){
+  lang = l; localStorage.setItem('lang', l);
+  const t = T();
+  document.documentElement.lang = l; document.documentElement.dir = t.dir; document.title = t.docTitle;
+  document.getElementById('title').textContent = t.title;
+  document.getElementById('q').placeholder = t.search; document.getElementById('q').setAttribute('aria-label', t.search);
+  document.getElementById('qx').setAttribute('aria-label', t.clear);
+  document.getElementById('locate').setAttribute('aria-label', t.locate);
+  document.getElementById('map').setAttribute('aria-label', t.map);
+  document.getElementById('grip').setAttribute('aria-label', t.showList);
+  document.querySelectorAll('.langs button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.lang===l));
+  map.attributionControl.setPrefix(false);
+  if(curAttrib) map.attributionControl.removeAttribution(curAttrib);
+  curAttrib = t.attrib; map.attributionControl.addAttribution(curAttrib);
+  if(!lots.length) { document.getElementById('updated').textContent = t.loading; document.getElementById('sheetSub').textContent = me ? '' : t.locating; }
+  render();
+}
+document.querySelectorAll('.langs button').forEach(b=> b.onclick = ()=>setLang(b.dataset.lang));
 
+// ---------- state / map ----------
 let lots = [], markers = new Map(), filter = 'all', query = '', selected = null, me = null, lastBatch = 0, lastFetch = 0;
-
+const FILTER_IDS = ['all','free','few','full','gratis','nodata'];
 const map = L.map('map', {zoomControl:false}).setView([32.08, 34.78], 13);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom:19, attribution:'© OpenStreetMap · נתונים: עיריית תל אביב-יפו'
-}).addTo(map);
+const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:''}).addTo(map);
 L.control.zoom({position:'bottomleft'}).addTo(map);
 
 // ---------- data ----------
 const lines = s => (s||'').split('‡').map(x=>x.trim()).filter(Boolean);
 const num = (re, s) => { const m = s.match(re); return m ? Number(m[1]) : null; };
 const fold = s => (s||'').replace(/[״"`'’]/g,'').replace(/\s+/g,' ').trim().toLowerCase();
-
 function parseTariff(l){
   const all = [l.tariffDay, l.tariffDayWin, l.tariffNight, l.tariffNightWin].flat().join(' ');
   const notes = l.notes.join(' ');
   return {
-    firstHour: num(/לשעה ראשונה[^0-9]{0,25}(\d+)/, all),
-    quarter:   num(/¼ שעה נוספת[^0-9]{0,25}(\d+)/, all),
-    perHour:   num(/(\d+)\s*₪\s*לשעה/, all),
-    oneTime:   num(/חד[ -]?פעמית?[^0-9]{0,25}(\d+)/, all),
-    maxDay:    num(/מקסימום ליום[^0-9]{0,10}(\d+)/, all),
+    firstHour: num(/לשעה ראשונה[^0-9]{0,25}(\d+)/, all), quarter: num(/¼ שעה נוספת[^0-9]{0,25}(\d+)/, all),
+    perHour: num(/(\d+)\s*₪\s*לשעה/, all), oneTime: num(/חד[ -]?פעמית?[^0-9]{0,25}(\d+)/, all), maxDay: num(/מקסימום ליום[^0-9]{0,10}(\d+)/, all),
     residentPct: num(/(\d+)%\s*(?:מתעריף|הנחה)/, notes) ?? num(/הנחה של (\d+)%/, notes),
     residentPrice: num(/תו אזורי[^0-9]{0,6}(\d+(?:\.\d+)?)\s*₪/, all),
-    free15: /15 דקות ללא תשלום/.test(all+notes),
-    creditOnly: /אשראי/.test(notes+all),
-    closedNote: /נסגר/.test(all+notes)
+    free15: /15 דקות ללא תשלום/.test(all+notes), creditOnly: /אשראי/.test(notes+all), closedNote: /נסגר/.test(all+notes)
   };
 }
 function norm(p){
   const s = (p.status_chenyon||'').trim();
-  const st = STATUS[s] || STATUS[''];
+  const k = {'פנוי':'free','מעט':'few','מלא':'full','סגור':'closed','פעיל':'open'}[s] || 'unknown';
   const l = {
-    id: p.oid_hof, code: p.code_achoza,
-    name: (p.shem_chenyon||'').trim().replace(/\s+/g,' '), addr: (p.ktovet||'').trim(),
-    lat: p.lat, lon: p.lon,
-    k: st.k, statusL: st.l, statusS: st.short,
+    id: p.oid_hof, nameHe: (p.shem_chenyon||'').trim().replace(/\s+/g,' '), addr: (p.ktovet||'').trim(),
+    lat: p.lat, lon: p.lon, sk: k, k: k==='open'||k==='unknown' ? 'nodata' : k,
     gratis: /ללא תשלום/.test(p.taarif_yom||''),
-    tariffDay: lines(p.taarif_yom), tariffDayWin: lines(p.chalon_taarif_yom),
-    tariffNight: lines(p.taarif_layla), tariffNightWin: lines(p.chalon_zman_taarif_layla),
-    notes: lines(p.hearot_taarif),
-    spaces: p.mispar_mekomot_bchenyon||0,
-    ts: p.tr_status_chenyon||0
+    tariffDay: lines(p.taarif_yom), tariffDayWin: lines(p.chalon_taarif_yom), tariffNight: lines(p.taarif_layla), tariffNightWin: lines(p.chalon_zman_taarif_layla),
+    notes: lines(p.hearot_taarif), spaces: p.mispar_mekomot_bchenyon||0, ts: p.tr_status_chenyon||0
   };
+  const tr = NAMES[fold(l.nameHe)] || [l.nameHe, l.nameHe];
+  l.names = {he:l.nameHe, en:tr[0], ar:tr[1]};
   l.t = parseTariff(l);
-  l.hay = fold(l.name+' '+l.addr);
+  l.hay = fold(l.nameHe+' '+tr[0]+' '+tr[1]+' '+l.addr);
   return l;
 }
+const nameOf = l => l.names[lang];
+const statusOf = l => T().status[l.sk];
 
 async function load(){
   try{
@@ -225,38 +309,37 @@ async function load(){
     lastBatch = Math.max(...lots.map(l=>l.ts)); lastFetch = Date.now();
     hideMsg(); render();
   }catch(e){
-    if(!lots.length) showMsg('לא הצלחתי לטעון את הנתונים',
-      'שרת ה-GIS של העירייה לא ענה או חסם את הבקשה מהדפדפן. אפשר לרענן, או לפתוח את <a href="'+SRC+'" target="_blank" rel="noopener">מקור הנתונים</a> ישירות.');
-    else document.getElementById('updated').textContent = 'הרענון נכשל · מציג נתונים קודמים';
+    if(!lots.length) showMsg(T().errT, T().errP(SRC));
+    else document.getElementById('updated').textContent = T().errRefresh;
   }
 }
 
 // ---------- render ----------
 function render(){
+  if(!lots.length) return;
   renderMeta(); renderChips(); renderMarkers(); renderList();
   if(selected){ const l = lots.find(x=>x.id===selected); if(l) renderDetail(l); }
 }
-const hhmm = t => new Date(t).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+const hhmm = t => new Date(t).toLocaleTimeString(T().locale,{hour:'2-digit',minute:'2-digit'});
 function renderMeta(){
-  const u = document.getElementById('updated'), dot = document.getElementById('live');
+  const t = T(), u = document.getElementById('updated'), dot = document.getElementById('live');
   if(lastBatch){
     const age = Date.now()-lastBatch;
-    u.textContent = `נתוני העירייה מ‑${hhmm(lastBatch)} · נבדק ${hhmm(lastFetch)}`;
-    dot.classList.toggle('stale', age>STALE_MS);
-    dot.title = age>STALE_MS ? 'העירייה לא עדכנה כבר כמה שעות' : 'הנתונים טריים';
+    u.textContent = t.updated(hhmm(lastBatch), hhmm(lastFetch));
+    dot.classList.toggle('stale', age>STALE_MS); dot.title = age>STALE_MS ? t.staleHint : t.freshHint;
   }
-  const c = {free:0,few:0,full:0};
-  lots.forEach(l=>{ if(c[l.k]!==undefined) c[l.k]++; });
-  document.getElementById('counts').textContent = `${c.free} פנויים · ${c.few} מעט · ${c.full} מלאים`;
+  const c = {free:0,few:0,full:0}; lots.forEach(l=>{ if(c[l.k]!==undefined) c[l.k]++; });
+  document.getElementById('counts').textContent = t.counts(c.free,c.few,c.full);
 }
 function renderChips(){
   const el = document.getElementById('chips'); el.innerHTML='';
-  FILTERS.forEach(f=>{
-    const n = f.id==='all'?lots.length: f.id==='gratis'?lots.filter(l=>l.gratis).length : lots.filter(l=>l.k===f.k).length;
+  FILTER_IDS.forEach(id=>{
+    const n = id==='all'?lots.length: id==='gratis'?lots.filter(l=>l.gratis).length : lots.filter(l=>l.k===id).length;
     const b = document.createElement('button');
-    b.className='chip'; b.type='button'; b.setAttribute('aria-pressed', filter===f.id);
-    b.innerHTML = (f.k?`<span class="sw" style="background:var(--${f.k})"></span>`:'') + f.l + `<span class="n">${n}</span>`;
-    b.onclick = ()=>{ filter=f.id; selected=null; closeDetail(); render(); };
+    b.className='chip'; b.type='button'; b.setAttribute('aria-pressed', filter===id);
+    const sw = ['free','few','full','nodata'].includes(id) ? `<span class="sw" style="background:var(--${id})"></span>` : '';
+    b.innerHTML = sw + T().filters[id] + `<span class="n">${n}</span>`;
+    b.onclick = ()=>{ filter=id; selected=null; closeDetail(); render(); };
     el.appendChild(b);
   });
 }
@@ -264,7 +347,7 @@ function passes(l){
   if(query && !l.hay.includes(query)) return false;
   if(filter==='all') return true;
   if(filter==='gratis') return l.gratis;
-  const f = FILTERS.find(x=>x.id===filter); return l.k===f.k;
+  return l.k===filter;
 }
 const icon = (l, dim) => L.divIcon({className:'', html:`<div class="pin ${l.k}${dim?' dim':''}"></div>`, iconSize:[22,22], iconAnchor:[11,11]});
 function renderMarkers(){
@@ -274,38 +357,38 @@ function renderMarkers(){
     const dim = !passes(l);
     let m = markers.get(l.id);
     if(!m){
-      m = L.marker([l.lat,l.lon], {icon:icon(l,dim), keyboard:true, title:l.name});
+      m = L.marker([l.lat,l.lon], {icon:icon(l,dim), keyboard:true, title:nameOf(l)});
       m.on('click', ()=>select(l.id, true));
       m.addTo(map); markers.set(l.id, m);
     } else m.setIcon(icon(l,dim));
     m.setZIndexOffset(selected===l.id?200: dim?0:100);
-    const el = m.getElement(); if(el) el.classList.toggle('sel', selected===l.id);
+    const el = m.getElement(); if(el){ el.classList.toggle('sel', selected===l.id); el.title = nameOf(l); }
   });
   markers.forEach((m,id)=>{ if(!seen.has(id)){ map.removeLayer(m); markers.delete(id);} });
 }
 function dist(l){ if(!me) return null; const R=6371, dLat=(l.lat-me.lat)*Math.PI/180, dLon=(l.lon-me.lon)*Math.PI/180;
   const a=Math.sin(dLat/2)**2+Math.cos(me.lat*Math.PI/180)*Math.cos(l.lat*Math.PI/180)*Math.sin(dLon/2)**2; return 2*R*Math.asin(Math.sqrt(a)); }
-const fmtDist = km => km==null?'':km<1?Math.round(km*1000)+' מ׳':km.toFixed(1)+' ק״מ';
-const walk = km => km==null?'':Math.max(1,Math.round(km/4.5*60))+' דק׳ הליכה';
+const fmtDist = km => km==null?'':km<1?Math.round(km*1000)+' '+T().m:km.toFixed(1)+' '+T().km;
+const walk = km => km==null?'':T().walk(Math.max(1,Math.round(km/4.5*60)));
 function renderList(){
-  const el = document.getElementById('list'); el.innerHTML='';
+  const t = T(), el = document.getElementById('list'); el.innerHTML='';
   let arr = lots.filter(passes);
   const rank = {free:0,few:1,nodata:2,full:3,closed:4};
-  arr.sort((a,b)=> me ? dist(a)-dist(b) : (rank[a.k]-rank[b.k]) || a.name.localeCompare(b.name,'he'));
-  document.getElementById('sheetTitle').textContent = query ? 'תוצאות חיפוש' : me ? 'הקרובים אליך' : 'כל החניונים';
-  document.getElementById('sheetSub').textContent = `${arr.length} חניונים` + (me ? ' · לפי מרחק' : ' · לפי מצב');
+  arr.sort((a,b)=> me ? dist(a)-dist(b) : (rank[a.k]-rank[b.k]) || nameOf(a).localeCompare(nameOf(b), t.locale));
+  document.getElementById('sheetTitle').textContent = query ? t.results : me ? t.near : t.all;
+  document.getElementById('sheetSub').textContent = t.lots(arr.length) + ' · ' + (me ? t.byDist : t.byStatus);
   arr.forEach(l=>{
     const b = document.createElement('button'); b.className='row'; b.type='button';
     const d = dist(l);
-    b.innerHTML = `<div class="st ${l.k}">${l.statusS}</div>
-      <div><div class="nm">${l.name}</div><div class="ad">${l.addr}${l.gratis?' · ללא תשלום':''}</div></div>
+    b.innerHTML = `<div class="st ${l.k}">${statusOf(l)[1]}</div>
+      <div><div class="nm">${nameOf(l)}</div><div class="ad">${l.addr}${l.gratis?' · '+t.gratisTag:''}</div></div>
       <div class="ds">${d!=null?`<b>${fmtDist(d)}</b>${walk(d)}`:''}</div>`;
     b.onclick = ()=>select(l.id, false);
     el.appendChild(b);
   });
-  if(!arr.length) el.innerHTML = `<div class="empty">${query?'לא נמצא חניון בשם הזה':'אין חניונים שמתאימים לסינון הזה'}</div>`;
-  if(query && arr.length){ // zoom to results
-    const b = L.latLngBounds(arr.map(l=>[l.lat,l.lon])); map.fitBounds(b.pad(.3), {maxZoom:15});
+  if(!arr.length) el.innerHTML = `<div class="empty">${query?t.notFound:t.noneMatch}</div>`;
+  if(query && arr.length){
+    map.fitBounds(L.latLngBounds(arr.map(l=>[l.lat,l.lon])).pad(.3), {maxZoom:15});
     document.getElementById('sheet').classList.remove('min');
   }
 }
@@ -313,59 +396,58 @@ function select(id, fromMap){
   selected = id; const l = lots.find(x=>x.id===id);
   renderMarkers(); renderDetail(l);
   document.getElementById('sheet').classList.remove('min');
-  if(!fromMap) map.flyTo([l.lat,l.lon], Math.max(map.getZoom(),15), {duration:.4});
-  else map.panTo([l.lat,l.lon], {animate:true});
+  if(!fromMap) map.flyTo([l.lat,l.lon], Math.max(map.getZoom(),15), {duration:.4}); else map.panTo([l.lat,l.lon]);
 }
 function priceTiles(l){
-  const t = l.t, tiles = [];
-  if(l.gratis) tiles.push(`<div class="price gratis"><div class="v">חינם</div><div class="l">לפי השילוט במקום</div></div>`);
-  else if(t.closedNote && !t.firstHour && !t.oneTime) tiles.push(`<div class="price"><div class="v">—</div><div class="l">החניון סגור לחניה</div></div>`);
+  const t = T(), p = l.t, tiles = [];
+  const sh = '<small>₪</small>';
+  if(l.gratis) tiles.push(`<div class="price gratis"><div class="v">${t.pFree}</div><div class="l">${t.pFreeL}</div></div>`);
+  else if(p.closedNote && !p.firstHour && !p.oneTime) tiles.push(`<div class="price"><div class="v">—</div><div class="l">${t.pClosed}</div></div>`);
   else {
-    if(t.firstHour) tiles.push(`<div class="price"><div class="v"><small>₪</small>${t.firstHour}</div><div class="l">שעה ראשונה${t.quarter?`, +${t.quarter} ₪ לרבע שעה`:''}</div></div>`);
-    else if(t.perHour) tiles.push(`<div class="price"><div class="v"><small>₪</small>${t.perHour}</div><div class="l">לשעה, לפי דקות${t.maxDay?` · מקס׳ ${t.maxDay} ₪ ליום`:''}</div></div>`);
-    if(t.oneTime) tiles.push(`<div class="price"><div class="v"><small>₪</small>${t.oneTime}</div><div class="l">${t.firstHour||t.perHour?'לילה / שבת, כניסה חד־פעמית':'כניסה חד־פעמית, 24 שעות'}</div></div>`);
-    if(t.residentPrice) tiles.push(`<div class="price gratis"><div class="v"><small>₪</small>${t.residentPrice}</div><div class="l">תושב / סטודנט</div></div>`);
-    else if(t.residentPct) tiles.push(`<div class="price gratis"><div class="v">${t.residentPct}%</div><div class="l">הנחת תושב תל אביב-יפו</div></div>`);
-    if(!tiles.length) tiles.push(`<div class="price"><div class="v">?</div><div class="l">ראו פירוט התעריף</div></div>`);
+    if(p.firstHour) tiles.push(`<div class="price"><div class="v">${sh}${p.firstHour}</div><div class="l">${t.firstHour}${p.quarter?t.quarter(p.quarter):''}</div></div>`);
+    else if(p.perHour) tiles.push(`<div class="price"><div class="v">${sh}${p.perHour}</div><div class="l">${t.perHour}${p.maxDay?t.maxDay(p.maxDay):''}</div></div>`);
+    if(p.oneTime) tiles.push(`<div class="price"><div class="v">${sh}${p.oneTime}</div><div class="l">${p.firstHour||p.perHour?t.oneNight:t.oneDay}</div></div>`);
+    if(p.residentPrice) tiles.push(`<div class="price gratis"><div class="v">${sh}${p.residentPrice}</div><div class="l">${t.resident}</div></div>`);
+    else if(p.residentPct) tiles.push(`<div class="price gratis"><div class="v">${p.residentPct}%</div><div class="l">${t.residentPct}</div></div>`);
+    if(!tiles.length) tiles.push(`<div class="price"><div class="v">?</div><div class="l">${t.seeRaw}</div></div>`);
   }
   return `<div class="prices">${tiles.slice(0,3).join('')}</div>`;
 }
 function renderDetail(l){
-  const d = document.getElementById('detail'); document.getElementById('list').classList.add('hidden'); d.classList.remove('hidden');
+  const t = T(), d = document.getElementById('detail');
+  document.getElementById('list').classList.add('hidden'); d.classList.remove('hidden');
   const waze = `https://waze.com/ul?ll=${l.lat},${l.lon}&navigate=yes`;
   const gmaps = `https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lon}`;
-  const t = l.t, tags = [];
-  if(t.free15) tags.push('<span class="tag good">15 דק׳ ראשונות חינם</span>');
-  if(t.creditOnly) tags.push('<span class="tag warn">אשראי / אפליקציה בלבד</span>');
-  if(l.spaces) tags.push(`<span class="tag">${l.spaces} מקומות</span>`);
+  const p = l.t, tags = [];
+  if(p.free15) tags.push(`<span class="tag good">${t.free15}</span>`);
+  if(p.creditOnly) tags.push(`<span class="tag warn">${t.credit}</span>`);
+  if(l.spaces) tags.push(`<span class="tag">${t.spaces(l.spaces)}</span>`);
   const dm = dist(l);
   const sec = (h,arr)=> arr.length?`<h3>${h}</h3>${arr.map(x=>`<p>${x}</p>`).join('')}`:'';
   d.innerHTML = `
-    <div class="head"><div><h2>${l.name}</h2><div class="addr">${l.addr}${dm!=null?` · ${fmtDist(dm)}, ${walk(dm)}`:''}</div></div><div class="badge ${l.k}">${l.statusL}</div></div>
+    <div class="head"><div><h2>${nameOf(l)}</h2>${lang!=='he'?`<div class="sub" dir="rtl">${l.nameHe}</div>`:''}<div class="addr"><span dir="rtl">${l.addr}</span>${dm!=null?` · ${fmtDist(dm)}, ${walk(dm)}`:''}</div></div><div class="badge ${l.k}">${statusOf(l)[0]}</div></div>
     ${priceTiles(l)}
     ${tags.length?`<div class="tags">${tags.join('')}</div>`:''}
     <div class="acts">
-      <a class="btn primary" href="${waze}" target="_blank" rel="noopener">נווט ב‑Waze</a>
-      <a class="btn" href="${gmaps}" target="_blank" rel="noopener">Google Maps</a>
-      <button class="btn ghost" type="button" id="share" aria-label="שיתוף">שתף</button>
+      <a class="btn primary" href="${waze}" target="_blank" rel="noopener">${t.waze}</a>
+      <a class="btn" href="${gmaps}" target="_blank" rel="noopener">${t.gmaps}</a>
+      <button class="btn ghost" type="button" id="share">${t.share}</button>
     </div>
-    <details><summary>פירוט התעריף המלא</summary><div class="raw">
-      ${sec('תעריף יום', l.tariffDay.concat(l.tariffDayWin))}
-      ${sec('תעריף לילה', l.tariffNight.concat(l.tariffNightWin))}
-      ${sec('הערות', l.notes)}
+    <details><summary>${t.raw}</summary><div class="raw">
+      ${sec('תעריף יום', l.tariffDay.concat(l.tariffDayWin))}${sec('תעריף לילה', l.tariffNight.concat(l.tariffNightWin))}${sec('הערות', l.notes)}
     </div></details>
-    <div class="foot">${l.ts?`מצב תפוסה לפי העירייה נכון ל‑${new Date(l.ts).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'})}. `:''}התעריף הקובע הוא זה שבשילוט בחניון.</div>
-    <div class="acts" style="margin-top:8px"><button class="btn ghost" type="button" id="back" style="flex:1">חזרה לרשימה</button></div>`;
+    <div class="foot">${l.ts?t.asOf(new Date(l.ts).toLocaleString(t.locale,{dateStyle:'short',timeStyle:'short'})):''}${t.disclaimer}</div>
+    <div class="acts" style="margin-top:8px"><button class="btn ghost" type="button" id="back" style="flex:1">${t.back}</button></div>`;
   document.getElementById('back').onclick = ()=>{ selected=null; closeDetail(); renderMarkers(); };
   document.getElementById('share').onclick = async ()=>{
-    const url = location.origin+location.pathname+'#'+l.id;
-    const text = `חניון ${l.name} — ${l.statusL}. ${l.addr}`;
-    if(navigator.share){ try{ await navigator.share({title:l.name, text, url}); }catch(e){} }
-    else { await navigator.clipboard.writeText(text+' '+url); document.getElementById('share').textContent='הועתק'; }
+    const url = `${location.origin}${location.pathname}?lang=${lang}#${l.id}`;
+    const text = `${t.lotWord} ${nameOf(l)} — ${statusOf(l)[0]}. ${l.addr}`;
+    if(navigator.share){ try{ await navigator.share({title:nameOf(l), text, url}); }catch(e){} }
+    else { await navigator.clipboard.writeText(text+' '+url); document.getElementById('share').textContent=t.copied; }
   };
-  history.replaceState(null,'','#'+l.id);
+  history.replaceState(null,'',`?lang=${lang}#${l.id}`);
 }
-function closeDetail(){ document.getElementById('detail').classList.add('hidden'); document.getElementById('list').classList.remove('hidden'); history.replaceState(null,'',location.pathname); }
+function closeDetail(){ document.getElementById('detail').classList.add('hidden'); document.getElementById('list').classList.remove('hidden'); history.replaceState(null,'',`?lang=${lang}`); }
 
 // ---------- search ----------
 const q = document.getElementById('q'), qw = document.getElementById('searchWrap');
@@ -378,7 +460,6 @@ const sheet = document.getElementById('sheet'), grip = document.getElementById('
 grip.onclick = ()=> sheet.classList.toggle('min');
 grip.onkeydown = e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); grip.click(); } };
 map.on('click', ()=> sheet.classList.add('min'));
-
 let meMarker;
 function locate(fly){
   if(!navigator.geolocation) return;
@@ -388,14 +469,14 @@ function locate(fly){
     else meMarker.setLatLng([me.lat,me.lon]);
     if(fly) map.flyTo([me.lat,me.lon], 15, {duration:.5});
     if(lots.length) renderList();
-  }, ()=>{ document.getElementById('sheetSub').textContent='מיקום לא זמין · מסודר לפי מצב'; }, {timeout:8000, maximumAge:60000, enableHighAccuracy:true});
+  }, ()=>{ document.getElementById('sheetSub').textContent=T().noLoc; }, {timeout:8000, maximumAge:60000, enableHighAccuracy:true});
 }
 document.getElementById('locate').onclick = ()=>locate(true);
-locate(false);
-
 function showMsg(t,p){ document.getElementById('msgT').textContent=t; document.getElementById('msgP').innerHTML=p; document.getElementById('msg').classList.remove('hidden'); }
 function hideMsg(){ document.getElementById('msg').classList.add('hidden'); }
 
+setLang(pickLang());
+locate(false);
 load().then(()=>{ const id = Number(location.hash.slice(1)); if(id && lots.find(l=>l.id===id)) select(id,false); });
 setInterval(load, REFRESH_MS);
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) load(); });
